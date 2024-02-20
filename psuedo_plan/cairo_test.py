@@ -77,7 +77,7 @@ class Motif():
         
 
 
-
+#add if name = main
 testfigure = DNA_figure("SWAG", 1000)
 testfigure2 = DNA_figure("SWAG", 1000)
 
