@@ -1,0 +1,37 @@
+Classes: this may need to be broken down further depending on drawing)
+
+Final Picture
+DNA_Figure
+Exon
+Intron
+Rectangle (variable size parameters)
+each level can have rectangles involved
+
+DNA figure will at its core be a thing long rectangle scaled to sequence length
+
+Exons and Introns will need to be determined dynamically and overlay the DNA figure in the
+appropriate position.
+
+Color will be determined by motif position
+
+Final Picture will be a series of overlays
+|-----DNA_Figure(Intron backbone (might not need this might be anything thats not exon is intron))
+      |----------Exon (thick rectangle on top of DNA figure)
+      |----------Motif(Thick COLORED rectangle on top of DNA figure)
+
+Considerations:
+Scale needs to be determined dynamically
+Exon and motif functions will need tons of logic to generate multiple of each(current thought is just overlay)
+
+The functions will likely be complex and will be worth building and testing as i go.
+
+Order will be :
+
+Make Picture
+Loop to make DNA_Figures (all straight line right here)
+Use method for generating Exons on all DNA_Figures
+use method for generating motifs in picture
+
+
+
+
