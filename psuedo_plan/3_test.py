@@ -4,37 +4,6 @@ import cairo
 import math
 import re
 
-#width, height = 1100, 1100
-
-#create the coordinates to display your graphic, desginate output
-
-#surface = cairo.SVGSurface("example.svg",width, height)
-
-#create the coordinates you will be drawing on (like a transparency) - you can create a transformation matrix
-""" context = cairo.Context(surface)
-context.set_source_rgba(1, 1, 1, 1)
-context.rectangle(0, 0, 1100, 1100)
-context.fill() """
-#draw a rectangle
-""" context.rectangle(100,100,1800,100)        #(x0,y0,x1,y1)
-context.fill()
-
-#draw this spaces shows what spacing looks like at this scale
-context.rectangle(0,300,1900,100)        #(x0,y0,x1,y1)
-context.fill() """
-
-#line
-""" context.set_line_width(10)
-context.set_source_rgb(.3,.3,.3)
-context.move_to(50,150)        #(x,y)
-context.line_to(1950,150)
-context.stroke() """
-
-
-#Fasta to one line
-#Names in fasta
-#lengths of sequences
-
 class Image():
 
     def __init__(self, name: str, width: int, height: int, margins):
@@ -103,9 +72,7 @@ class Image():
         self.y1 = height-margins
 
     def write_png(self):
-        self.surface.write_to_png('test.png')
-
-        
+        self.surface.write_to_png('test.png')    
         #max(person_list, key=attrgetter('age'))
       
         
@@ -132,7 +99,7 @@ class Transcript():
             '''generates DNA backbone y coordinate based on number of i. '''
             self.y1 = y_space
             scaled_length = self.x1/scale
-            print(self.x1,scaled_length)
+            
             other.context.set_line_width(6)
             other.context.set_source_rgb(0,0,0)
             other.context.move_to(self.x0,self.y1)
@@ -161,24 +128,76 @@ class Exons():
                 other.context.fill()
 
 
-class Motif():
-    def __init__(self, sequence: str):
+class Motifs():
+    def __init__(self, transcript: Transcript, nucleotide_notation: dict, patterns: list):
+        '''Class generates all subsequences matching patterns from transcript provided '''
+        #list of motif patterns
+        self.patterns = patterns
 
-        self.sequence = sequence
-        self.length = len(sequence)
+        #add colors but only need max 5 for this
+        self.color_dict = {
+            "Blue": (0, 0.095, 0.58, 1),
+            "Green": (0.329, 0.788, 0.031, 1),
+            "Red": (0.788, 0.235, 0.235, 1),
+            "pink": (0.91, 0.318, 0.961, 1),
+            "black": (0,0,0,1),
+        }
+        self.color_keys = list(self.color_dict.keys())
+
+        #find motifs using regex for nucleotide notations
+        self.motifs = []
+        for pattern in self.patterns:
+            regex_pattern = pattern_to_regex(pattern, nucleotide_notation)
+            for match in re.finditer(f'(?=({regex_pattern}))', transcript.sequence):
+                start = match.start()
+                end = start + len(pattern)
+                self.motifs.append((pattern, match.group(1), start, end))
+               
+
+    def gen_motifs(self, other: Image, y_space, figurescale: float):
         
-        #ending (length) position coordinates
-        self.x0 = 100 + (self.length/900)*900
-        self.y0 = 100
+        ending_position = 0
 
-    def __len__(self):
-        return self.length
+        #assign mortif colors
+        motif_color = {}
+        for i, pattern in enumerate(self.patterns):
+            if pattern not in motif_color:
+                print(pattern)
+                motif_color[pattern] = self.color_dict[self.color_keys[i]]
+                i+=1
+
+        print(motif_color)
+ 
+        #sort motifs by position. lambda is inline function and x[1] extracts motif position
+        sorted_motifs = sorted(self.motifs, key=lambda x: x[3])
+        print(sorted_motifs)
+        for match in sorted_motifs:
+            print(match)
+            #calculate motif start position and end(how long rectangle will be)
+            start = (match[2]/figurescale) +other.x0
+            end = (match[3]/figurescale) +other.x0
+            
+            if start <= ending_position:
+                y_space += 10
+            else:
+                y_space = transcript.y1
+
+            ending_position = end
+            #set color of motif
+            R,G,B,A = motif_color[match[0]]
+            other.context.set_source_rgba(R,G,B,A)
+
+            #draw
+            other.context.rectangle(start,y_space,end-start,20)
+            other.context.fill()
+            
+
 ##ADD REPR
 def transcript_scaling(transcript_dict: dict, image: Image):
     seqprev=''
     for key in transcript_dict:
         seqcurrent = transcript_dict[key]
-        print(len(seqcurrent))
+
         if len(seqcurrent) > len(seqprev):
             seqprev=seqcurrent
     scale = len(seqprev)/image.x1
@@ -205,9 +224,61 @@ def fasta_to_tuple(fileread):
         fasta_tuple.append((header,seq))
     return fasta_tuple
 
+def get_patterns(fileread) -> list:
+    patterns = []
+    with open(fileread, 'r') as fhr:
+        for line in fhr:
+            line = line.strip()
+            patterns.append(line)
+    return patterns
 
-        
+def pattern_to_regex(pattern, nucelotide_notation):
+            regex_pattern = ""
+            for char in pattern:
+                regex_pattern += nucelotide_notation[char]
+            return regex_pattern
+
+#fasta file        
 fasta_tuple = fasta_to_tuple("/Users/bailey/bioinfo/Bi625/motif-mark/psuedo_plan/Figure_1.fasta")
+
+#motif patterns
+patterns = get_patterns("/Users/bailey/bioinfo/Bi625/motif-mark/psuedo_plan/Fig_1_motifs.txt")
+
+#generate dict of regex patterns
+nucleotide_notations = {
+    'W': '[AT]',
+    'S': '[CG]',
+    'M': '[AC]',
+    'K': '[GT]',
+    'R': '[AG]',
+    'Y': '[CT]',
+    'B': '[CGT]',
+    'D': '[AGT]',
+    'H': '[ACT]',
+    'V': '[ACG]',
+    'N': '[ACGT]',
+    'G': '[G]',
+    'C': '[C]',
+    'A': '[A]',
+    'T': '[T]',
+    'U': '[U]',
+    'w': '[at]',
+    's': '[cg]',
+    'm': '[ac]',
+    'k': '[gt]',
+    'r': '[ag]',
+    'y': '[ct]',
+    'b': '[cgt]',
+    'd': '[agt]',
+    'h': '[act]',
+    'v': '[acg]',
+    'n': '[acgt]',
+    'g': '[g]',
+    'c': '[c]',
+    'a': '[a]',
+    't': '[t]',
+    'u': '[u]',
+}
 
 #make multiple DNA objects for each record in fasta file using tupe froma above.
 transcript_obj_dict = {}
@@ -228,12 +299,14 @@ output_image = Image(filename, width, height, margins)
 #generate all backbones#############################
 #scale first
 scale, figurescale = transcript_scaling(transcript_obj_dict, output_image)
-print(figurescale)
+
 y_space=100
 for transcript in transcript_obj_dict.values():
     transcript.gen_backbone(output_image, y_space, scale)
     exons = Exons(transcript)
     exons.gen_exons(output_image, y_space, figurescale)
+    motifs = Motifs(transcript, nucleotide_notations, patterns)
+    motifs.gen_motifs(output_image,y_space, figurescale)
     y_space+=100
 ####################################################
     
