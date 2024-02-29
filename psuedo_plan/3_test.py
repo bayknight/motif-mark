@@ -9,14 +9,14 @@ class Image():
     def __init__(self, name: str, width: int, height: int, margins):
         
         #generate white background for size
-
+        self.fontsize = 20
         self.surface = cairo.SVGSurface(name, width, height)
         self.context = cairo.Context(self.surface)
         self.context.set_source_rgba(1, 1, 1, 1)
         self.context.set_source_rgba(1, 1, 1, 1)
         self.context.rectangle(0, 0, width, height)
         self.context.fill()
-        self.context.set_font_size(20)
+        self.context.set_font_size(self.fontsize)
         self.context.select_font_face("Arial",
                                     cairo.FONT_SLANT_NORMAL,
                                     cairo.FONT_WEIGHT_NORMAL)
@@ -29,7 +29,7 @@ class Image():
 
     
     def generate_legend(self, transcript_datastructure: dict|list|tuple, scale: float):
-        '''needs a data structure with length'''
+        '''Generate the bottom backbone legend showing base pair length. all these numbers could be variables in future.'''
         self.context.set_line_width(8)
         self.context.set_source_rgb(0,0,0)
         round_length = int(self.x1 *scale)
@@ -64,6 +64,7 @@ class Image():
         self.context.show_text(f'{round_length}')
         
         self.context.stroke()
+        
         #reset just in case
 
         self.x0 = margins
@@ -71,10 +72,45 @@ class Image():
         self.x1 = width-margins
         self.y1 = height-margins
 
+    def gen_key(self,other: Motifs):
+        '''generates motif labels with colors. in the future flip this and draw the box around the lables instead.'''
+        #position
+        offsetx = self.x1 - (self.x1*.15)
+        offsety = self.y1 - (self.y1*.1)
+        length = self.x1 *.14
+        height = self.y1 *.1
+        #draw rectangle for labels to live in
+        self.context.set_source_rgb(0,0,0)
+        self.context.rectangle(offsetx,offsety, length, height)
+        self.context.set_line_width(4)
+        self.context.stroke()
+
+        #generate motif names
+        fontsize  = self.fontsize*0.75
+        self.context.set_font_size(fontsize)
+        offsety += offsety *(.015*2)
+
+
+        for i, pattern in enumerate(other.patterns):
+            #set motif color key equal to motif colors
+            color_key = other.color_keys[i]
+            R,G,B,A = other.color_dict[color_key]
+            self.context.set_source_rgba(R,G,B,A)
+            #position key
+            self.context.move_to(offsetx+ offsetx*0.025,offsety)
+            self.context.show_text(f'{pattern}')
+            
+            self.context.rectangle(offsetx + offsetx*.01, offsety-offsety/110, offsetx/100,offsety/100)
+            self.context.fill()
+            offsety += offsety *.015
+
+        #reset font size
+        self.context.set_font_size(self.fontsize)
+
     def write_png(self):
         self.surface.write_to_png('test.png')    
         #max(person_list, key=attrgetter('age'))
-      
+    
         
 class Transcript():
     '''This is a skeleton of a class to draw a DNA figure it takes name and length
@@ -162,12 +198,11 @@ class Motifs():
         motif_color = {}
         for i, pattern in enumerate(self.patterns):
             if pattern not in motif_color:
-                print(pattern)
+                
                 motif_color[pattern] = self.color_dict[self.color_keys[i]]
                 i+=1
 
-        print(motif_color)
- 
+        
         #sort motifs by position. lambda is inline function and x[1] extracts motif position
         sorted_motifs = sorted(self.motifs, key=lambda x: x[3])
         print(sorted_motifs)
@@ -192,7 +227,7 @@ class Motifs():
             other.context.fill()
             
 
-##ADD REPR
+
 def transcript_scaling(transcript_dict: dict, image: Image):
     seqprev=''
     for key in transcript_dict:
@@ -313,5 +348,6 @@ for transcript in transcript_obj_dict.values():
 #scale and generate image#######################################
 #scaled_image = output_image.image_scaling(transcript_obj_dict)
 output_image.generate_legend(transcript_obj_dict, scale)
+output_image.gen_key(motifs)
 output_image.write_png()
 ################################################################
