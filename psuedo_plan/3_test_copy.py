@@ -1,22 +1,18 @@
 #!/usr/bin/env python
-
+from __future__ import annotations
 import cairo
+import math
 import re
 import argparse
-
-'''The purpose of this code is to find motifs given two input files. The first file should be a fasta file and the 
-second file should be .txt file listin motifs by row. the image is scaled appropriately to the number of overlapping
-motifs and fastas. max motifs is 5 and max length of motif is 10 as designated in assignment. If this ever needs
-to change the key will be the main thing to change in order to accommodate more morifs in the space provided. If more motifs than 5
-are given or length greater than 10 given it will still work but the key will be messy. '''
+import os
 
 class Image():
-    '''This class is used to generate the image and hold dimensional attributes'''
+
     def __init__(self, name: str, width: int, height: int, margins):
         
         #generate white background for size
         self.fontsize = 20
-        self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
+        self.surface = cairo.SVGSurface(f'{name}.svg', width, height)
         self.context = cairo.Context(self.surface)
         self.context.set_source_rgba(1, 1, 1, 1)
         self.context.set_source_rgba(1, 1, 1, 1)
@@ -27,39 +23,19 @@ class Image():
                                     cairo.FONT_SLANT_NORMAL,
                                     cairo.FONT_WEIGHT_NORMAL)
         #initial coordinates to start at (lines) these shouldnt be hard coded but are for now.
-        self.width = width
-        self.height = height
-        self.margins = margins
+
         self.x0 = margins
         self.y0 = margins
         self.x1 = width-margins
         self.y1 = height-margins
 
-    def resize_height(self, new_height):
-        '''used to resize image to appropriate height due to earlier design flaws.'''
-        # Create a new surface with the new height
-        new_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.width, new_height)
-        
-        # Create a new context for the new surface
-        new_context = cairo.Context(new_surface)
-        
-        # Copy content from the current surface to the new one
-        new_context.set_source_surface(self.surface)
-        new_context.paint()
-        
-        # Update attributes with the new height
-        self.height = new_height
-        self.surface = new_surface
-        self.context = new_context
-        self.y1 = new_height-margins 
-
+    
     def generate_legend(self, height, scale: float):
         '''Generate the bottom backbone legend showing base pair length. all these numbers could be variables in future.'''
         self.context.set_line_width(8)
         self.context.set_source_rgb(0,0,0)
         round_length = int(self.x1 *scale)
         half_max = round_length/2
-        self.context.set_font_size(20)
         #starting_point
         self.context.move_to(self.x0,self.y1) 
         #end point
@@ -103,7 +79,7 @@ class Image():
         
 class Transcript():
     '''This class is composed of introns exons and motifs. It facilitates the drawing of all those structures on the image class'''
-    def __init__(self, name: str, sequence: str, other: Image, figure_scale, total_scale, nucleotide_dict, patterns, y_space):
+    def __init__(self, name: str, sequence: str, other: Image, figure_scale, total_scale, nucleotide_dict, patterns,y_space):
 
         
         #self.motifs = Motifs(self)
@@ -121,12 +97,11 @@ class Transcript():
         self.patterns = patterns
 
         #generate introns exons and motifs
-        self.introns = Introns(self.x1, other, self.y1, total_scale, width, margins)
-        self.exons = Exons(self.sequence, other, self.y1, figure_scale)
-        self.motifs = Motifs(transcript, other, self.dict, self.patterns, self.y1)
-        self.labels = Labels(self.name, self.x0, other, self.patterns, self.motifs.color_dict, self.y1)
-
-        self.max_overlaps = self.motifs.maximum_overlaps(other)
+        self.introns = Introns(self.x1, other, y_space, total_scale, width, margins)
+        self.exons = Exons(self.sequence, other, y_space, figure_scale)
+        self.motifs = Motifs(transcript, other, self.dict, self.patterns, self.introns.y1)
+        self.labels = Labels(self.name, self.x0, other, self.patterns, self.motifs.color_dict, y_space)
+    
     def __len__(self):
         #delete and see if still works.
         return self.length
@@ -140,7 +115,6 @@ class Introns():
         other.context.set_line_width(10)
         other.context.set_source_rgb(0,0,0)
         other.context.move_to(margins,self.y1)
-        #scaling to max length
         other.context.line_to(scaled_length+((other.x0/other.x1)*((width-margins)-scaled_length)),self.y1)
         other.context.stroke()
 
@@ -150,14 +124,13 @@ class Exons():
         '''Generate exons and draw rectangle on context based on capital leters'''
         self.y0 = y_space
         self.exons= []
-        #find exons
         for match in re.finditer(r'[A-Z]+', sequence):
             self.exon = match.group(0)
             start = match.start()
             end = match.end()
             self.exons.append((start,end))
    
-        #draw exons using start and ending positons. positions are scaled to image  
+            
         for exon in self.exons:
             start = (exon[0]/figurescale)+other.x0
             end = (exon[1]-exon[0])/figurescale
@@ -181,9 +154,8 @@ class Motifs():
         }
         self.color_keys = list(self.color_dict.keys())
 
-        #generate a max_y position.
         self.max_y = y_position
-        #find motifs using regex for nucleotide notations and get start and ending positions
+        #find motifs using regex for nucleotide notations
         self.motifs = []
         for pattern in patterns:
             regex_pattern = pattern_to_regex(pattern, nucleotide_notation)
@@ -191,8 +163,12 @@ class Motifs():
                 start = match.start()
                 end = start + len(pattern)
                 self.motifs.append((pattern, match.group(1), start, end))
+               
 
-        #assign motif colors
+    
+        
+
+        #assign mortif colors
         self.motif_color = {}
         for i, pattern in enumerate(patterns):
             if pattern not in self.motif_color:
@@ -204,51 +180,21 @@ class Motifs():
         #sort motifs by position. lambda is inline function and x[3] extracts motif position
         sorted_motifs = sorted(self.motifs, key=lambda x: x[3])
         
-        #find overlaps from sorted motifs. this could be changed to a class function.
         process_overlaps(sorted_motifs,self.motif_color,other, self.max_y)
 
-    def maximum_overlaps(self, other):
-        '''find maximum number of overlaps to scale the spacing between transcripts.'''
-        # Initialize variables to store the maximum number of overlaps
-        max_overlaps = 0
-        current_overlaps = 0
-        end_prev = 0
-        # Sort motifs by their start position
-        sorted_motifs = sorted(self.motifs, key=lambda x: x[2])
-        
-        # find motifs starting and ending positons. positions scaled to iumage
-        for motif in sorted_motifs:
-            start = (motif[2] / figurescale) + other.x0
-            end = (motif[3] - motif[2]) / figurescale
-            
-            # Check if the current motif overlaps with the previous motif
-            if start < end_prev:
-                current_overlaps += 1
-            else:
-                # Update the maximum number of overlaps if needed
-                max_overlaps = max(max_overlaps, current_overlaps)
-                current_overlaps = 1  # Reset current overlaps count
-            
-            # Update the previous end position
-            end_prev = start + end
-        
-        # Update the maximum number of overlaps if needed (for the last motif)
-        max_overlaps = max(max_overlaps, current_overlaps)
-
-        return max_overlaps           
+           
             
             
 class Labels():
     def __init__(self,name, x0, other, patterns, color_dict, y_space):
 
-        #make new memory point for list to add exon and intron colors.
+        #make new memory point for list
         self.patterns = patterns[:]
         self.patterns.append('Exon')
         self.patterns.append('Intron')
         color_dict['grey'] = (.5,.5,.5,1)
         color_dict['black'] = (0,0,0,1)
         
-        #set color keys and label names
         color_keys = list(color_dict.keys())
         height = 10
         other.context.set_source_rgba(0,0,0,1)
@@ -268,8 +214,6 @@ class Labels():
     
 
 def transcript_scaling(transcript_dict: dict, image: Image):
-    '''Function to generate a multiplier for both scaling the legend to the image
-    and the transcripts to the legend.'''
     seqprev=''
     for key in transcript_dict:
         seqcurrent = transcript_dict[key]
@@ -317,7 +261,6 @@ def pattern_to_regex(pattern, nucelotide_notation):
     return regex_pattern
 
 def process_overlaps(sorted_motifs,motif_color, other: Image, max_y):
-    '''look for overlaps recursively to maximize motifs on each increment of y.'''
     # Initialize a list to store motifs that overlap with the previous motif
     current_overlapping = []
     end_prev = 0
@@ -334,17 +277,20 @@ def process_overlaps(sorted_motifs,motif_color, other: Image, max_y):
             # Draw the non-overlapping motif
             R, G, B, A = motif_color[motif[0]]
             other.context.set_source_rgba(R, G, B, A)
+            # Draw
             other.context.rectangle(start, max_y, end, 30)
             other.context.fill()
 
             # Update the previous end position
             end_prev = start + end
 
-    # If there are motifs in current overlapping list recursively call process overlaps until current overlapping list is empty.
+    # If there are motifs overlapping with the previous motif, process them
     if current_overlapping:
-        #increment y position for overlap viewing
         max_y += 32
         process_overlaps(current_overlapping, motif_color, other, max_y)
+
+# Initialize the previous end position
+end_prev = 0
 
 def get_args():
     '''argument parser for generating input in terminal. All arguments are necessary
@@ -357,92 +303,88 @@ def get_args():
 
             
 
-if __name__ == "__main__":
 
-    # get argumetns and set them to variables
-    args = get_args()
+args = get_args()
+filename = args.filename
+fileout = filename.split('.')
+fileout = fileout[0]
+motifs = args.motif
+#fasta file        
+fasta_tuple = fasta_to_tuple(filename)
 
-    #split filenames to get basename for output png
-    filename = args.filename
-    fileout = filename.split('.')
-    fileout = fileout[0]
+#motif patterns
+patterns = get_patterns(motifs)
 
-    #get motifs file too
-    motifs = args.motif
+#generate dict of regex patterns
+nucleotide_notations = {
+    'W': '[ATW]',
+    'S': '[CGS]',
+    'M': '[ACM]',
+    'K': '[GTK]',
+    'R': '[AGR]',
+    'Y': '[CTY]',
+    'B': '[CGTB]',
+    'D': '[AGTD]',
+    'H': '[ACTH]',
+    'V': '[ACGV]',
+    'N': '[ACGTN]',
+    'G': '[G]',
+    'C': '[C]',
+    'A': '[A]',
+    'T': '[T]',
+    'U': '[U]',
+    'w': '[atw]',
+    's': '[cgs]',
+    'm': '[acm]',
+    'k': '[gtk]',
+    'r': '[agr]',
+    'y': '[cty]',
+    'b': '[cgtb]',
+    'd': '[agtd]',
+    'h': '[acth]',
+    'v': '[acgv]',
+    'n': '[acgtn]',
+    'g': '[g]',
+    'c': '[c]',
+    'a': '[a]',
+    't': '[t]',
+    'u': '[u]',
+}
+
+width,margins = 1920, 100
+height = len(fasta_tuple)*700 +7*margins
+
+
+output_image = Image(fileout, width, height, margins)
+
+#generate all backbones#############################
+#scale first
+
+#make multiple DNA objects for each record in fasta file using tupe froma above.
+transcript_obj_dict = {}
+for element in fasta_tuple:
+    transcript_obj_dict[element[0]] = (element[1])
+
+scale, figurescale = transcript_scaling(transcript_obj_dict, output_image)
+
+#outimage###########################################
+
+
+
+y_space = 400
+max_y = 100
+transcripts = []
+prevy = 300
+for i, transcript in enumerate(transcript_obj_dict.values()):
+    name = fasta_tuple[i][0]
+    transcript = Transcript(name, transcript,output_image,figurescale, scale, nucleotide_notations, patterns, y_space)
+    transcripts.append(transcript)
+    max_y = transcript.motifs.max_y
+    diffy = max_y-prevy
+    y_space= 700+y_space
+####################################################
     
-    #fasta file parsing        
-    fasta_tuple = fasta_to_tuple(filename)
-
-    #get motif patterns
-    patterns = get_patterns(motifs)
-
-    #generate dict of regex patterns
-    nucleotide_notations = {
-        'W': '[ATW]',
-        'S': '[CGS]',
-        'M': '[ACM]',
-        'K': '[GTK]',
-        'R': '[AGR]',
-        'Y': '[CTY]',
-        'B': '[CGTB]',
-        'D': '[AGTD]',
-        'H': '[ACTH]',
-        'V': '[ACGV]',
-        'N': '[ACGTN]',
-        'G': '[G]',
-        'C': '[C]',
-        'A': '[A]',
-        'T': '[T]',
-        'U': '[U]',
-        'w': '[atw]',
-        's': '[cgs]',
-        'm': '[acm]',
-        'k': '[gtk]',
-        'r': '[agr]',
-        'y': '[cty]',
-        'b': '[cgtb]',
-        'd': '[agtd]',
-        'h': '[acth]',
-        'v': '[acgv]',
-        'n': '[acgtn]',
-        'g': '[g]',
-        'c': '[c]',
-        'a': '[a]',
-        't': '[t]',
-        'u': '[u]',
-    }
-
-    #set dimensions of initial image
-    width,margins = 1920, 100
-    height = len(fasta_tuple)*700 +4*margins
-
-
-    output_image = Image(fileout, width, height, margins)
-
-    #make multiple DNA objects for each record in fasta file using tupe froma above.
-    transcript_obj_dict = {}
-    for element in fasta_tuple:
-        transcript_obj_dict[element[0]] = (element[1])
-
-
-    #calculate the multipliers for scaling legend and transcripts
-    scale, figurescale = transcript_scaling(transcript_obj_dict, output_image)
-
-    # set initial y transcript starting position and max_y and empty transcript list
-    y_space = 300
-    max_y = 100
-    transcripts = []
-
-    #instantiate transcript objects (they generate the images too)
-    for i, transcript in enumerate(transcript_obj_dict.values()):
-        name = fasta_tuple[i][0]
-        transcript = Transcript(name, transcript,output_image,figurescale, scale, nucleotide_notations, patterns,y_space)
-        transcripts.append(transcript)
-        y_space= y_space + 32*transcript.max_overlaps +400
-
-        
-    #resize, make legend and outputt image#
-    output_image.resize_height(y_space)
-    output_image.generate_legend(y_space, scale)
-    output_image.write_png(f'{fileout}.png')
-
+#scale and generate image#######################################
+output_image.generate_legend(y_space, scale)
+output_image.write_png(f'{fileout}.png')
+################################################################

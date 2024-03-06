@@ -76,9 +76,9 @@ class Image():
         '''generates motif labels with colors. in the future flip this and draw the box around the lables instead.'''
         #position
         offsetx = self.x1 - (self.x1*.15)
-        offsety = self.y1 - (self.y1*.1)
+        offsety = self.y1 - (self.y1*.11)
         length = self.x1 *.14
-        height = self.y1 *.1
+        height = self.y1 *.11
         #draw rectangle for labels to live in
         self.context.set_source_rgb(0,0,0)
         self.context.rectangle(offsetx,offsety, length, height)
@@ -90,17 +90,28 @@ class Image():
         self.context.set_font_size(fontsize)
         offsety += offsety *(.015*2)
 
+        #copying datastructure to manipulate for key
+        color_dict = other.color_dict
+        color_keys = other.color_keys
+        patterns = other.patterns
 
-        for i, pattern in enumerate(other.patterns):
+        patterns.append('Exon')
+        patterns.append('Intron')
+        color_dict['grey'] = (.5,.5,.5,1)
+        color_dict['black'] = (0,0,0,1)
+        color_keys.append('grey')
+        color_keys.append('black')
+        for i, pattern in enumerate(patterns):
             #set motif color key equal to motif colors
-            color_key = other.color_keys[i]
-            R,G,B,A = other.color_dict[color_key]
+            color_key = color_keys[i]
+            print(color_key)
+            R,G,B,A = color_dict[color_key]
             self.context.set_source_rgba(R,G,B,A)
             #position key
-            self.context.move_to(offsetx+ offsetx*0.025,offsety)
+            self.context.move_to(offsetx+ offsetx*0.025,offsety-12)
             self.context.show_text(f'{pattern}')
             
-            self.context.rectangle(offsetx + offsetx*.01, offsety-offsety/110, offsetx/100,offsety/100)
+            self.context.rectangle(offsetx + offsetx*.01, offsety-offsety/50, offsetx/100,offsety/90)
             self.context.fill()
             offsety += offsety *.015
 
@@ -117,6 +128,7 @@ class Transcript():
     that will be parsed from a fasta file in order to draw shapes. It will need
     a way to handle motifs.'''
     def __init__(self, name: str, sequence: str):
+
         self.name = name
         self.sequence = sequence
         self.length = len(sequence)
@@ -131,7 +143,7 @@ class Transcript():
         #delete and see if still works.
         return self.length
     
-    def gen_backbone(self, other: Image, y_space, scale: float):
+    def gen_backbone(self, other: Image, y_space, scale: float, width, margins):
             '''generates DNA backbone y coordinate based on number of i. '''
             self.y1 = y_space
             scaled_length = self.x1/scale
@@ -139,7 +151,7 @@ class Transcript():
             other.context.set_line_width(6)
             other.context.set_source_rgb(0,0,0)
             other.context.move_to(self.x0,self.y1)
-            other.context.line_to(scaled_length+((other.x0/other.x1)*(1000-scaled_length)),self.y1)
+            other.context.line_to(scaled_length+((other.x0/other.x1)*((width-margins)-scaled_length)),self.y1)
             other.context.stroke()
 
 class Exons():
@@ -160,7 +172,7 @@ class Exons():
                 start = (exon[0]/figurescale)+other.x0
                 end = (exon[1]-exon[0])/figurescale
                 other.context.set_source_rgb(.5,.5,.5)
-                other.context.rectangle(start,y_space,end,20)        #(x0,y0,x1,y1)
+                other.context.rectangle(start,y_space-10,end,20)        #(x0,y0,x1,y1)
                 other.context.fill()
 
 
@@ -176,7 +188,7 @@ class Motifs():
             "Green": (0.329, 0.788, 0.031, 1),
             "Red": (0.788, 0.235, 0.235, 1),
             "pink": (0.91, 0.318, 0.961, 1),
-            "black": (0,0,0,1),
+            "yellow": (1,1,0,1),
         }
         self.color_keys = list(self.color_dict.keys())
 
@@ -203,27 +215,27 @@ class Motifs():
                 i+=1
 
         
-        #sort motifs by position. lambda is inline function and x[1] extracts motif position
-        sorted_motifs = sorted(self.motifs, key=lambda x: x[3])
-        print(sorted_motifs)
+        #sort motifs by position. lambda is inline function and x[3] extracts motif position
+        sorted_motifs = sorted(self.motifs, key=lambda x: x[2])
+        
         for match in sorted_motifs:
-            print(match)
+            
             #calculate motif start position and end(how long rectangle will be)
             start = (match[2]/figurescale) +other.x0
-            end = (match[3]/figurescale) +other.x0
-            
+            end = (match[3]-match[2])/figurescale
+
             if start <= ending_position:
                 y_space += 10
             else:
                 y_space = transcript.y1
 
-            ending_position = end
+            ending_position = start+end
             #set color of motif
             R,G,B,A = motif_color[match[0]]
             other.context.set_source_rgba(R,G,B,A)
 
             #draw
-            other.context.rectangle(start,y_space,end-start,20)
+            other.context.rectangle(start,y_space,end,20)
             other.context.fill()
             
 
@@ -326,7 +338,7 @@ for element in fasta_tuple:
 
 
 filename = "test.svg"
-width, height, margins = 1100, 1300, 100
+width, height, margins = 1800, 1300, 100
 #outimage###########################################
 
 output_image = Image(filename, width, height, margins)
@@ -337,7 +349,7 @@ scale, figurescale = transcript_scaling(transcript_obj_dict, output_image)
 
 y_space=100
 for transcript in transcript_obj_dict.values():
-    transcript.gen_backbone(output_image, y_space, scale)
+    transcript.gen_backbone(output_image, y_space, scale, width, margins)
     exons = Exons(transcript)
     exons.gen_exons(output_image, y_space, figurescale)
     motifs = Motifs(transcript, nucleotide_notations, patterns)
