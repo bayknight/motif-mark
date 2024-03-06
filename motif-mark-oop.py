@@ -123,7 +123,7 @@ class Transcript():
         #generate introns exons and motifs
         self.introns = Introns(self.x1, other, self.y1, total_scale, width, margins)
         self.exons = Exons(self.sequence, other, self.y1, figure_scale)
-        self.motifs = Motifs(transcript, other, self.dict, self.patterns, self.y1)
+        self.motifs = Motifs(sequence, other, self.dict, self.patterns, self.y1)
         self.labels = Labels(self.name, self.x0, other, self.patterns, self.motifs.color_dict, self.y1)
 
         self.max_overlaps = self.motifs.maximum_overlaps(other)
@@ -133,7 +133,7 @@ class Transcript():
     
 
 class Introns():
-    def __init__(self,length, other: Image, y_space, scale: float, width, margins):
+    def __init__(self,length: int, other: Image, y_space: float, scale: float, width: float, margins: float):
         '''generates DNA backbone y coordinate based on number of i. this takes the entire lenght, but exons will lie on top of this backbone. '''
         self.y1 = y_space
         scaled_length = length/scale 
@@ -146,7 +146,7 @@ class Introns():
 
 
 class Exons():
-    def __init__(self, sequence, other: Image, y_space, figure_scale):
+    def __init__(self, sequence: str, other: Image, y_space, figure_scale: float):
         '''Generate exons and draw rectangle on context based on capital leters'''
         self.y0 = y_space
         self.exons= []
@@ -167,7 +167,7 @@ class Exons():
 
 
 class Motifs():
-    def __init__(self, sequence, other: Image, nucleotide_notation: dict, patterns: list, y_position: float):
+    def __init__(self, sequence: str, other: Image, nucleotide_notation: dict, patterns: list, y_position: float):
         '''Class generates all subsequences matching patterns from transcript provided '''
         #list of motif patterns
 
@@ -183,6 +183,7 @@ class Motifs():
 
         #generate a max_y position.
         self.max_y = y_position
+        
         #find motifs using regex for nucleotide notations and get start and ending positions
         self.motifs = []
         for pattern in patterns:
@@ -207,7 +208,7 @@ class Motifs():
         #find overlaps from sorted motifs. this could be changed to a class function.
         process_overlaps(sorted_motifs,self.motif_color,other, self.max_y)
 
-    def maximum_overlaps(self, other):
+    def maximum_overlaps(self, other: Image):
         '''find maximum number of overlaps to scale the spacing between transcripts.'''
         # Initialize variables to store the maximum number of overlaps
         max_overlaps = 0
@@ -239,7 +240,7 @@ class Motifs():
             
             
 class Labels():
-    def __init__(self,name, x0, other, patterns, color_dict, y_space):
+    def __init__(self,name: str, x0: float, other: Image, patterns: list, color_dict: dict, y_space: float):
 
         #make new memory point for list to add exon and intron colors.
         self.patterns = patterns[:]
@@ -280,7 +281,7 @@ def transcript_scaling(transcript_dict: dict, image: Image):
     figurescale = len(seqprev)/(image.x1-image.x0)
     return scale, figurescale
  
-def fasta_to_tuple(fileread):
+def fasta_to_tuple(fileread: str):
     '''makes list of tuples from fasta file. (name, sequence)'''
     fasta_tuple = []
     seq=''
@@ -300,7 +301,7 @@ def fasta_to_tuple(fileread):
         fasta_tuple.append((header,seq))
     return fasta_tuple
 
-def get_patterns(fileread) -> list:
+def get_patterns(fileread: str) -> list:
     '''get patterns in strings from file'''
     patterns = []
     with open(fileread, 'r') as fhr:
@@ -309,14 +310,14 @@ def get_patterns(fileread) -> list:
             patterns.append(line)
     return patterns
 
-def pattern_to_regex(pattern, nucelotide_notation):
+def pattern_to_regex(pattern: str, nucelotide_notation: dict):
     '''convert pattern to regex format for nucleotide notation'''
     regex_pattern = ""
     for char in pattern:
         regex_pattern += nucelotide_notation[char]
     return regex_pattern
 
-def process_overlaps(sorted_motifs,motif_color, other: Image, max_y):
+def process_overlaps(sorted_motifs: list,motif_color: dict, other: Image, max_y: float|int):
     '''look for overlaps recursively to maximize motifs on each increment of y.'''
     # Initialize a list to store motifs that overlap with the previous motif
     current_overlapping = []
@@ -434,9 +435,9 @@ if __name__ == "__main__":
     transcripts = []
 
     #instantiate transcript objects (they generate the images too)
-    for i, transcript in enumerate(transcript_obj_dict.values()):
+    for i, sequence in enumerate(transcript_obj_dict.values()):
         name = fasta_tuple[i][0]
-        transcript = Transcript(name, transcript,output_image,figurescale, scale, nucleotide_notations, patterns,y_space)
+        transcript = Transcript(name, sequence ,output_image,figurescale, scale, nucleotide_notations, patterns,y_space)
         transcripts.append(transcript)
         y_space= y_space + 32*transcript.max_overlaps +400
 

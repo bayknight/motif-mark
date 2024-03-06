@@ -16,4 +16,4 @@ psuedo_plan folder contains 2 example file sets and outputs as well as a brief e
 
 future directions:
 
-if needed to optimize build from motif up rather than transcript down for positions. this would eliminate the need for rescaling
+If needed to optimize, build from motif up rather than transcript down for positions. This would eliminate the need for rescaling.
