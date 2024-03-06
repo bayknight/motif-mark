@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1100" height="1100" viewBox="0 0 1100 1100">
-<rect x="-110" y="-110" width="1320" height="1320" fill="rgb(100%, 100%, 100%)" fill-opacity="1"/>
-<path fill="none" stroke-width="10" stroke-linecap="butt" stroke-linejoin="miter" stroke="rgb(30%, 30%, 30%)" stroke-opacity="1" stroke-miterlimit="10" d="M 100 100 L 1000 100 "/>
-<path fill="none" stroke-width="10" stroke-linecap="butt" stroke-linejoin="miter" stroke="rgb(30%, 30%, 30%)" stroke-opacity="1" stroke-miterlimit="10" d="M 100 300 L 1000 300 "/>
-<path fill="none" stroke-width="10" stroke-linecap="butt" stroke-linejoin="miter" stroke="rgb(30%, 30%, 30%)" stroke-opacity="1" stroke-miterlimit="10" d="M 100 500 L 1000 500 "/>
-</svg>
