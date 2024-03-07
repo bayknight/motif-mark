@@ -172,18 +172,24 @@ class Motifs():
         #list of motif patterns
 
         #add colors but only need max 5 for this
-        self.color_dict = {
-            "Blue": (0, 0.095, 0.58, 1),
-            "Green": (0.329, 0.788, 0.031, 1),
-            "Red": (0.788, 0.235, 0.235, 1),
-            "pink": (0.91, 0.318, 0.961, 1),
-            "yellow": (1,1,0,1),
-        }
-        self.color_keys = list(self.color_dict.keys())
+        self.color_values = [(0, 0.095, 0.58, 1),
+            (0.329, 0.788, 0.031, 1),
+            (0.788, 0.235, 0.235, 1),
+            (0.91, 0.318, 0.961, 1),
+            (1,1,0,1)]
+        self.color_keys = ["Blue",
+            "Green",
+            "Red",
+            "pink",
+            "yellow"]
+        
+        self.color_dict = {}
+        for i in range(len(patterns)):
+            self.color_dict[self.color_keys[i]]=self.color_values[i]
 
         #generate a max_y position.
         self.max_y = y_position
-        
+
         #find motifs using regex for nucleotide notations and get start and ending positions
         self.motifs = []
         for pattern in patterns:
@@ -281,7 +287,7 @@ def transcript_scaling(transcript_dict: dict, image: Image):
     figurescale = len(seqprev)/(image.x1-image.x0)
     return scale, figurescale
  
-def fasta_to_tuple(fileread: str):
+def fasta_to_tuple(fileread: str) ->list:
     '''makes list of tuples from fasta file. (name, sequence)'''
     fasta_tuple = []
     seq=''
@@ -310,7 +316,7 @@ def get_patterns(fileread: str) -> list:
             patterns.append(line)
     return patterns
 
-def pattern_to_regex(pattern: str, nucelotide_notation: dict):
+def pattern_to_regex(pattern: str, nucelotide_notation: dict) ->str:
     '''convert pattern to regex format for nucleotide notation'''
     regex_pattern = ""
     for char in pattern:

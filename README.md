@@ -11,7 +11,8 @@ run using:
 Output files will be outputted to folder where fastafile is held.
 
 
-psuedo_plan folder contains 2 example file sets and outputs as well as a brief example of basic pycairo.
+psuedo_plan folder contains 3 example file sets and outputs as well as a brief example of basic pycairo.
+Fig_1* were provided by instructors.
 
 
 future directions:
